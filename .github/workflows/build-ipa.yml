@@ -18,33 +18,44 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
 
+      - name: Show versions
+        run: |
+          xcodebuild -version
+          swift --version
+
       - name: Archive without signing
         run: |
+          set -o pipefail
           xcodebuild archive \
             -project PuenteWiFi.xcodeproj \
             -scheme PuenteWiFi \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath build/PuenteWiFi.xcarchive \
+            -archivePath "$PWD/build/PuenteWiFi.xcarchive" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            | xcpretty || xcodebuild archive \
-            -project PuenteWiFi.xcodeproj \
-            -scheme PuenteWiFi \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath build/PuenteWiFi.xcarchive \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+            CODE_SIGN_ENTITLEMENTS="" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM=""
 
       - name: Package unsigned IPA
         run: |
-          cd build/PuenteWiFi.xcarchive/Products/Applications
-          mkdir -p Payload
-          mv PuenteWiFi.app Payload/
-          zip -qry "$GITHUB_WORKSPACE/PuenteWiFi-unsigned.ipa" Payload
+          set -euo pipefail
+          archive="$PWD/build/PuenteWiFi.xcarchive"
+          echo "Contenido del archivo:"
+          ls -R "$archive/Products" || true
+          app="$(find "$archive" -maxdepth 4 -name '*.app' -type d | head -1)"
+          if [ -z "$app" ]; then
+            echo "No se encontró ninguna .app dentro del archivo"; exit 1
+          fi
+          echo "App encontrada: $app"
+          rm -rf "$PWD/build/Payload"
+          mkdir -p "$PWD/build/Payload"
+          cp -R "$app" "$PWD/build/Payload/"
+          ( cd "$PWD/build" && zip -qry "$GITHUB_WORKSPACE/PuenteWiFi-unsigned.ipa" Payload )
+          echo "IPA creada:"
+          ls -la "$GITHUB_WORKSPACE/PuenteWiFi-unsigned.ipa"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4

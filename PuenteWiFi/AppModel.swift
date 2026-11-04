@@ -82,14 +82,14 @@ final class AppModel: ObservableObject {
         let server = ProxyServer(
             configuration: .init(credentials: credentials)
         ) { [weak self] state in
-            Task { @MainActor in self?.proxyState = state }
+            Task { @MainActor [weak self] in self?.proxyState = state }
         }
         self.server = server
         server.start()
         UIApplication.shared.isIdleTimerDisabled = true
 
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refreshRunningInfo() }
+            Task { @MainActor [weak self] in self?.refreshRunningInfo() }
         }
     }
 
@@ -105,7 +105,7 @@ final class AppModel: ObservableObject {
     private func refreshRunningInfo() {
         refreshAddresses()
         server?.readStats { [weak self] stats in
-            Task { @MainActor in self?.stats = stats }
+            Task { @MainActor [weak self] in self?.stats = stats }
         }
     }
 
